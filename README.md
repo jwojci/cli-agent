@@ -24,7 +24,7 @@ A command-line AI agent powered by the Google Gemini API that can interact with 
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/your-username/cli-agent.git](https://github.com/your-username/cli-agent.git)
+    git clone [https://github.com/jwojci/cli-agent.git](https://github.com/jwojci/cli-agent.git)
     ```
 2.  **Install dependencies:**
     ```bash
@@ -56,6 +56,7 @@ To run the included tests for the calculator application, execute:
 
 ```bash
 python cli_agent/calculator/tests.py
+```
 
 ## Potential Improvements
 - Advanced Coding Capabilities: Enhance the agent to handle complex bug fixes and perform significant code refactoring.
