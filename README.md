@@ -24,7 +24,7 @@ A command-line AI agent powered by the Google Gemini API that can interact with 
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/jwojci/cli-agent.git](https://github.com/jwojci/cli-agent.git)
+    git clone https://github.com/jwojci/cli-agent.git
     ```
 2.  **Install dependencies:**
     ```bash
