@@ -78,7 +78,9 @@ def main():
             plan = response_text[plan_start:plan_end].strip()
             print(plan)
 
-            user_input = input("\nProceed with this plan? (y/n): ").strip().lower()
+            user_input = (
+                input("\nProceed with this plan? (y/n/r for revise): ").strip().lower()
+            )
             if user_input == "y":
                 print("Plan approved. Proceeding with execution...")
                 messages.append(
@@ -87,7 +89,21 @@ def main():
                     )
                 )
                 continue
-            elif user_input == "n":
+
+            elif user_input == "r":
+                # get reason and ask for a new plan
+                reason = input("Please provide your feedback for revision: ")
+                feedback_prompt = (
+                    f"The user has rejected the previous plan. "
+                    f"Here is their feedback: '{reason}'.\n\n"
+                    f"Please analyze this feedback and generate a new plan."
+                )
+                messages.append(
+                    types.Content(role="user", parts=[types.Part(text=feedback_prompt)])
+                )
+                continue  # Go to the next iteration to get a revised plan
+
+            else:
                 print("Plan rejected. Exiting.")
                 break
 
