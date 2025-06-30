@@ -17,10 +17,11 @@ available_functions = types.Tool(
 
 
 def call_function(function_call_part, verbose=False):
+    function_name = function_call_part.name
     if verbose:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        print(f"Calling function: {function_name}({function_call_part.args})")
     else:
-        print(f" - Calling function: {function_call_part.name}")
+        print(f" - Calling function: {function_name}")
 
     function_map = {
         "get_files_info": get_files_info,
@@ -29,27 +30,24 @@ def call_function(function_call_part, verbose=False):
         "run_python_file": run_python_file,
     }
 
-    function_name = function_call_part.name
     if function_name in function_map.keys():
-        function_result = function_map[function_name](
-            WORKING_DIR, **function_call_part.args
-        )
-        return types.Content(
-            role="tool",
-            parts=[
-                types.Part.from_function_response(
-                    name=function_name,
-                    response={"result": function_result},
-                )
-            ],
-        )
+        try:
+            function_result = function_map[function_name](
+                WORKING_DIR, **function_call_part.args
+            )
+            response_data = {"result": function_result}
+        except Exception as e:
+            response_data = {
+                "error": f"Function {function_name} failed with error: {type(e).__name__}: {e}"
+            }
     else:
-        return types.Content(
-            role="tool",
-            parts=[
-                types.Part.from_function_response(
-                    name=function_name,
-                    response={"error": f"Unknown function: {function_name}"},
-                )
-            ],
-        )
+        response_data = {"error": f"Unknown function: {function_name}"}
+
+    return types.Content(
+        role="tool",
+        parts=[
+            types.Part.from_function_response(
+                name=function_name, response=response_data
+            )
+        ],
+    )

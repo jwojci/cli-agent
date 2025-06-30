@@ -8,21 +8,25 @@ def get_file_content(working_directory, file_path):
     abs_file_path = os.path.abspath(os.path.join(cwd_abs_path, file_path))
 
     if not abs_file_path.startswith(cwd_abs_path + os.sep):
-        return f'Error: Cannot read "{file_path}" as it is outside the permitted working directory'
+        raise PermissionError(
+            f'Cannot read "{file_path}" as it is outside the permitted working directory'
+        )
     if not os.path.isfile(abs_file_path):
-        return f'Error: File not found or is not a regular file: "{file_path}"'
+        raise FileNotFoundError(
+            f'File not found or is not a regular file: "{file_path}"'
+        )
 
     try:
         content = ""
-        with open(abs_file_path, "r") as f:
+        with open(abs_file_path, "r", econding="utf-8") as f:
             content = f.read(MAX_CHARS)
 
-        if len(content) >= 10000:
-            content += '[...File "{file_path}" truncated at 10000 characters]'
+        if len(content) >= MAX_CHARS:
+            content += f'\n[...File "{file_path}" truncated at {MAX_CHARS} characters]'
 
         return content
     except Exception as e:
-        return f"Error: {e}"
+        raise IOError(f"Could not read file '{file_path}': {e}")
 
 
 schema_get_file_content = types.FunctionDeclaration(
@@ -36,5 +40,6 @@ schema_get_file_content = types.FunctionDeclaration(
                 description="Filepath to the file of which content to read.",
             )
         },
+        required=["file_path"],
     ),
 )

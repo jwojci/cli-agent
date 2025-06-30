@@ -2,23 +2,26 @@ import os
 from google.genai import types
 
 
-def get_files_info(working_directory, directory=None):
+def get_files_info(working_directory, directory="."):
     cwd_abs_path = os.path.abspath(working_directory)
-    target_dir = cwd_abs_path
-    if directory:
-        target_dir = os.path.abspath(os.path.join(working_directory, directory))
-    if not target_dir.startswith(cwd_abs_path):
-        return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
-    if not os.path.isdir(target_dir):
-        return f'Error: "{directory}" is not a directory'
-    try:
-        files_info = """"""
-        for f in os.scandir(os.path.join(cwd_abs_path, directory)):
-            files_info += f"- {f.name}: file_size={os.path.getsize(f)} bytes, is_dir={f.is_dir()}\n"
+    target_dir = os.path.abspath(os.path.join(working_directory, directory))
 
-        return files_info
+    if not target_dir.startswith(cwd_abs_path):
+        raise PermissionError(
+            f'Cannot list "{directory}" as it is outside the permitted working directory'
+        )
+    if not os.path.isdir(target_dir):
+        raise NotADirectoryError(f'Error: "{directory}" is not a directory')
+
+    try:
+        files = os.scandir(target_dir)
+        files_info = "".join(
+            f"- {f.name}: file_size={f.stat().st_size} bytes, is_dir={f.is_dir()}\n"
+            for f in files
+        )
+        return files_info if files_info else "The directory is empty."
     except Exception as e:
-        return f"Error listing files: {e}"
+        raise IOError(f"Error listing files in '{directory}': {e}")
 
 
 schema_get_files_info = types.FunctionDeclaration(
