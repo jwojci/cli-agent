@@ -1,14 +1,23 @@
 import os
 import sys
+import re
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+import tui
 from prompts import system_prompt
 from functions.call_function import call_function, available_functions
 
 MAX_ITERS = 20
+
+
+def extract_content(text: str, tag: str) -> str | None:
+    """Extracts content from between specified XML tags."""
+    pattern = f"<{tag}>(.*?)</{tag}>"
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else None
 
 
 def main():
@@ -18,22 +27,17 @@ def main():
     args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
     if not args:
-        print("AI Code Assistant")
-        print('\nUsage: python main.py "your prompt here" [--verbose]')
-        print('Example: python main.py "How do I fix the calculator?"')
-        sys.exit(1)
+        tui.display_greeting()
+        sys.exit(0)
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("Error: GEMINI_API_KEY not found in .env file.")
+        tui.display_error("GEMINI_API_KEY not found in .env file.")
         sys.exit(1)
 
     client = genai.Client(api_key=api_key)
-
     user_prompt = " ".join(args)
-
-    if verbose:
-        print(f"User prompt: {user_prompt}\n")
+    tui.display_user_prompt(user_prompt)
 
     messages = [types.Content(role="user", parts=[types.Part(text=user_prompt)])]
 
@@ -71,73 +75,62 @@ def main():
         )
         function_calls = response.function_calls
 
-        if "<plan>" in response_text:
-            print("Agent has a plan:")
-            plan_start = response_text.find("<plan>") + len("<plan>")
-            plan_end = response_text.find("</plan>")
-            plan = response_text[plan_start:plan_end].strip()
-            print(plan)
+        plan = extract_content(response_text, "plan")
+        reflection = extract_content(response_text, "reflection")
 
-            user_input = (
-                input("\nProceed with this plan? (y/n/r for revise): ").strip().lower()
+        if reflection:
+            tui.display_reflection(reflection)
+
+        if plan:
+            tui.display_plan(plan)
+            user_input = tui.get_confirmation(
+                "Proceed with this plan? (y/n/r for revise)"
             )
             if user_input == "y":
-                print("Plan approved. Proceeding with execution...")
                 messages.append(
                     types.Content(
                         role="user", parts=[types.Part(text="Proceed with the plan.")]
                     )
                 )
                 continue
-
             elif user_input == "r":
-                # get reason and ask for a new plan
-                reason = input("Please provide your feedback for revision: ")
-                feedback_prompt = (
-                    f"The user has rejected the previous plan. "
-                    f"Here is their feedback: '{reason}'.\n\n"
-                    f"Please analyze this feedback and generate a new plan."
+                reason = tui.console.input(
+                    "[bold]Please provide your feedback for revision: [/bold]"
                 )
+                feedback = f"The user has rejected the plan. Feedback: '{reason}'. Generate a new plan."
                 messages.append(
-                    types.Content(role="user", parts=[types.Part(text=feedback_prompt)])
+                    types.Content(role="user", parts=[types.Part(text=feedback)])
                 )
-                continue  # Go to the next iteration to get a revised plan
-
+                continue
             else:
-                print("Plan rejected. Exiting.")
+                tui.display_error("Plan rejected by user. Exiting.")
                 break
 
         if function_calls:
-            function_responses = []
             for function_call_part in function_calls:
-                function_call_result = call_function(function_call_part, verbose)
-                if (
-                    not function_call_result.parts
-                    or not function_call_result.parts[0].function_response
-                ):
-                    raise Exception("empty function call result")
-                if verbose:
-                    print(
-                        f"-> {function_call_result.parts[0].function_response.response}"
-                    )
-                function_responses.append(function_call_result.parts[0])
-
-            if not function_responses:
-                raise Exception("no function responses generated, exiting.")
-
-            messages.append(types.Content(role="tool", parts=function_responses))
+                tui.display_function_call(
+                    function_call_part.name, dict(function_call_part.args)
+                )
+                function_result = call_function(function_call_part, verbose)
+                response_payload = function_result.parts[0].function_response
+                tui.display_function_response(dict(response_payload.response))
+                messages.append(function_result)
             continue
 
-        if response_text:
-            print("\nFinal Answer:")
-            print(response_text)
+        final_answer = response_text
+        if plan or reflection:
+            if not final_answer.strip():
+                continue
+
+        if final_answer:
+            tui.display_final_answer(final_answer)
             break
 
-        print("No actionable response from the model. Exiting.")
+        tui.display_error("No actionable response from the model. Exiting.")
         break
 
     if iters >= MAX_ITERS:
-        print(f"Maximum iterations ({MAX_ITERS}) reached.")
+        tui.display_error(f"Maximum iterations ({MAX_ITERS}) reached.")
         sys.exit(1)
 
 
